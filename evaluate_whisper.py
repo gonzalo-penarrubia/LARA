@@ -1,6 +1,6 @@
 import requests
 from typing import Callable
-
+import os
 import mlflow
 
 
@@ -41,26 +41,46 @@ def format_transcription(transcription: str) -> str:
     return ''.join(sentences)
 
 
-def load_pretrained_model(model_uri: str) -> Callable:
+def load_pretrained_model() -> Callable:
     '''
-    Load the saved transcription pipeline as a generic python function
-
-    Args:
-        model_uri(str): The uri of the pretrained model.
-
+    Load the saved transcription pipeline from the most recent run
+    
     Returns:
         (Callable): A python function wrapper with the model.
     '''
+    mlflow.set_tracking_uri('http://localhost:5000')
+    client = mlflow.tracking.MlflowClient()
+    
+    # Obtener el experimento
+    experiment = client.get_experiment_by_name('LARA Whisper Transcription')
+    if not experiment:
+        raise Exception("No se encontró el experimento 'LARA Whisper Transcription'")
+    
+    # Obtener la ejecución más reciente
+    runs = client.search_runs(
+        experiment_ids=[experiment.experiment_id],
+        order_by=["start_time DESC"],
+        max_results=1
+    )
+    
+    if not runs:
+        raise Exception("No se encontraron ejecuciones en el experimento")
+    
+    latest_run = runs[0]
+    model_uri = f"runs:/{latest_run.info.run_id}/lara_whisper"
+    print(f"Cargando modelo desde: {model_uri}")
+    
     return mlflow.pyfunc.load_model(model_uri=model_uri)
 
 
 def run_eval_flow(pyfunc_transcriber: Callable, audio: bytes):
     '''
+    Execute the evaluation flow with MLflow tracking
     '''
     mlflow.set_tracking_uri('http://localhost:5000')
     mlflow.set_experiment('LARA Whisper Transcription')
 
-    with mlflow.start_run(run_name='Lara'):
+    with mlflow.start_run(run_name='Lara_Evaluation'):
         pyfunc_transcription = pyfunc_transcriber.predict([audio])
         mlflow.log_params({
             'Fisrt Entry Transcribed': format_transcription(pyfunc_transcription[0])
@@ -68,13 +88,18 @@ def run_eval_flow(pyfunc_transcriber: Callable, audio: bytes):
 
 
 if __name__ == '__main__':
-
-    # (1) Load Model
-    pyfunc_transcriber = load_pretrained_model(model_uri='models:/WhisperLara/latest')
-
+    print("Iniciando evaluación del modelo Whisper...")
+    
+    # (1) Load Model (ahora directamente del run más reciente)
+    print("Cargando el modelo entrenado más reciente...")
+    pyfunc_transcriber = load_pretrained_model()
+    
     # (2) Load audio
+    print("Descargando audio de prueba...")
     audio = gather_audio()
-
+    
     # (3) Predict
+    print("Ejecutando evaluación...")
     run_eval_flow(pyfunc_transcriber, audio)
     
+    print("Evaluación completada con éxito.")

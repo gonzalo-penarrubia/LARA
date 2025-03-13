@@ -37,34 +37,63 @@ jobs:
     - name: Start MLflow server
       run: |
         mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root ./mlruns --host 0.0.0.0 --port 5000 &
-        sleep 5
+        sleep 10  # Aumentamos el tiempo de espera para asegurar que el servidor inicie completamente
+
+    - name: Verificar servidor MLflow
+      run: |
+        python -c "
+        import time
+        import requests
+        import sys
+
+        for i in range(5):
+            try:
+                response = requests.get('http://localhost:5000/api/2.0/mlflow/experiments/list')
+                if response.status_code == 200:
+                    print('Servidor MLflow funcionando correctamente')
+                    sys.exit(0)
+            except Exception as e:
+                print(f'Intento {i+1}: Error al verificar MLflow: {e}')
+            time.sleep(2)
+
+        print('ERROR: No se pudo conectar al servidor MLflow')
+        sys.exit(1)
+        "
 
     - name: Train Whisper model
       run: |
         python train_whisper.py
 
-    - name: Register model explicitly
+    - name: Listar ejecuciones de MLflow
       run: |
         python -c "
         import mlflow
         mlflow.set_tracking_uri('http://localhost:5000')
         client = mlflow.tracking.MlflowClient()
+
+        # Listar todos los experimentos
+        experiments = client.list_experiments()
+        print(f'Experimentos disponibles: {[exp.name for exp in experiments]}')
+
+        # Buscar el experimento específico
         experiment = client.get_experiment_by_name('LARA Whisper Transcription')
-        latest_runs = client.search_runs(experiment_ids=[experiment.experiment_id], order_by=['start_time DESC'], max_results=1)
-        latest_run = latest_runs[0]
-        model_uri = f'runs:/{latest_run.info.run_id}/lara_whisper'
-        try:
-            mlflow.register_model(model_uri=model_uri, name='WhisperLara')
-            print('Modelo registrado como WhisperLara')
-        except Exception as e:
-            print(f'Error al registrar modelo: {e}')
+        if experiment:
+            print(f'Experimento encontrado con ID: {experiment.experiment_id}')
+            # Listar ejecuciones
+            runs = client.search_runs(experiment_ids=[experiment.experiment_id], order_by=['start_time DESC'])
+            print(f'Número de ejecuciones: {len(runs)}')
+            if runs:
+                print(f'Última ejecución: {runs[0].info.run_id}')
+                print(f'Artefactos: {client.list_artifacts(runs[0].info.run_id)}')
+        else:
+            print('Experimento no encontrado')
         "
 
     - name: Evaluate Whisper model
       run: |
         python evaluate_whisper.py
 
-    - name: Register model in production
+    - name: Register model in production (solo en master)
       if: github.ref == 'refs/heads/master'
       run: |
         python -c "
@@ -75,6 +104,10 @@ jobs:
         latest_runs = client.search_runs(experiment_ids=[experiment.experiment_id], order_by=['start_time DESC'], max_results=1)
         latest_run = latest_runs[0]
         model_uri = f'runs:/{latest_run.info.run_id}/lara_whisper'
-        mlflow.register_model(model_uri=model_uri, name='WhisperLara')
-        print('Modelo registrado como WhisperLara')
+        try:
+            registered_model = mlflow.register_model(model_uri=model_uri, name='WhisperLara')
+            print(f'Modelo registrado como WhisperLara versión {registered_model.version}')
+        except Exception as e:
+            print(f'Error al registrar modelo: {e}')
+            # Si falla el registro, el flujo debe continuar
         "
