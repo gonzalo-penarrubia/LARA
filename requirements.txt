@@ -1,0 +1,6 @@
+mlflow
+transformers
+torch
+torchvision
+torchaudio
+ffmpeg-python
