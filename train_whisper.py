@@ -75,9 +75,11 @@ def start_flow(audio_transcription_pipeline: pipeline, audio: bytes, model_confi
             signature=signature,
             input_example=audio,
             model_config=model_config,
-            registered_model_name='WhisperLara',
             # save_pretrained=False
         )
+
+        # Register Model
+        mlflow.register_model(model_info.model_uri, 'WhisperLara')
 
     return model_info
 
@@ -99,3 +101,4 @@ if __name__ == '__main__':
             'stride_length_s': [5, 3],
         }
     )
+    
