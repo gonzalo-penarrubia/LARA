@@ -94,6 +94,11 @@ jobs:
       run: |
         python evaluate_whisper.py
 
+    - name: Upload Model to S3
+      if: github.ref == 'refs/heads/master'  
+      run: |
+        python push_s3.py
+
     - name: Register model in production (solo en master)
       if: github.ref == 'refs/heads/master'
       run: |

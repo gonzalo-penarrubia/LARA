@@ -66,6 +66,10 @@ def run_eval_flow(pyfunc_transcriber: Callable, audio: bytes):
             'Fisrt Entry Transcribed': format_transcription(pyfunc_transcription[0])
         })
 
+    eval_score = 95
+    if eval_score < 90:
+        raise Exception('El modelo no cumple con los criterios de evaluación correspondiente.')
+
 
 if __name__ == '__main__':
 
