@@ -36,7 +36,7 @@ jobs:
 
     - name: Start MLflow server
       run: |
-        mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root ./mlruns --host 0.0.0.0 --port 5000 &
+        mlflow server --host 0.0.0.0 --port 5000 --default-artifact-root ./mlruns &
         sleep 10  # Aumentamos el tiempo de espera para asegurar que el servidor inicie completamente
 
     - name: Verificar servidor MLflow
@@ -48,7 +48,8 @@ jobs:
 
         for i in range(5):
             try:
-                response = requests.get('http://localhost:5000/api/2.0/mlflow/experiments/list')
+                response = requests.get('http://localhost:5000')
+                response.raise_for_status()
                 if response.status_code == 200:
                     print('Servidor MLflow funcionando correctamente')
                     sys.exit(0)
@@ -72,7 +73,7 @@ jobs:
         client = mlflow.tracking.MlflowClient()
 
         # Listar todos los experimentos
-        experiments = client.list_experiments()
+        experiments = client.search_experiments()
         print(f'Experimentos disponibles: {[exp.name for exp in experiments]}')
 
         # Buscar el experimento específico
