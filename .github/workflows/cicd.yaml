@@ -32,7 +32,7 @@ jobs:
 
     - name: Run tests with coverage
       run: |
-        pytest tests/ --cov=src --cov-fail-under=80
+        python -m pytest tests/ --cov=src --cov-fail-under=80
 
     - name: Start MLflow server
       run: |
@@ -95,7 +95,7 @@ jobs:
         python evaluate_whisper.py
 
     - name: Upload Model to S3
-      if: github.ref == 'refs/heads/master'  
+      if: github.ref == 'refs/heads/master'
       run: |
         python push_s3.py
 
