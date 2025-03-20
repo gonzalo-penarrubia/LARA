@@ -1,0 +1,7 @@
+boto3
+mlflow
+transformers
+torch
+torchvision
+torchaudio
+ffmpeg-python
