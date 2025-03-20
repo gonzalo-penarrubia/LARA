@@ -1,5 +1,5 @@
 import unittest
-from model import Modelo
+from src.modelo import Modelo
 
 
 class TestModelo(unittest.TestCase):
